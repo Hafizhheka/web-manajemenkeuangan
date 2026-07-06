@@ -1,0 +1,12 @@
+{
+  "name": "Manajemen Keuangan & Pemindai Struk",
+  "description": "Aplikasi manajemen keuangan pribadi yang menyinkronkan transaksi ke Google Sheets dan menggunakan AI untuk memindai struk belanja secara otomatis.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
