@@ -6,7 +6,7 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
-  User,
+  type User,
 } from "firebase/auth";
 
 // 1. Ambil string JSON dari Env, jika kosong default ke objek kosong string '{}'
