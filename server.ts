@@ -25,7 +25,9 @@ const ai = new GoogleGenAI({
 
 // Helper to parse base64 data URLs
 function parseDataUrl(dataUrl: string) {
-  const matches = dataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+  const matches = dataUrl.match(
+    /^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/,
+  );
   if (!matches) {
     return { mimeType: "image/jpeg", data: dataUrl };
   }
@@ -40,7 +42,9 @@ app.post("/api/scan-receipt", async (req, res) => {
   try {
     const { image } = req.body;
     if (!image) {
-      return res.status(400).json({ error: "Foto struk belanja diperlukan (format base64)." });
+      return res
+        .status(400)
+        .json({ error: "Foto struk belanja diperlukan (format base64)." });
     }
 
     const { mimeType, data } = parseDataUrl(image);
@@ -64,27 +68,59 @@ app.post("/api/scan-receipt", async (req, res) => {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            merchantName: { type: Type.STRING, description: "Nama toko, supermarket atau merchant" },
-            date: { type: Type.STRING, description: "Tanggal transaksi dalam format YYYY-MM-DD" },
-            totalAmount: { type: Type.NUMBER, description: "Total pembayaran/belanja di struk" },
-            category: { type: Type.STRING, description: "Kategori pengeluaran umum yang cocok (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)" },
+            merchantName: {
+              type: Type.STRING,
+              description: "Nama toko, supermarket atau merchant",
+            },
+            date: {
+              type: Type.STRING,
+              description: "Tanggal transaksi dalam format YYYY-MM-DD",
+            },
+            totalAmount: {
+              type: Type.NUMBER,
+              description: "Total pembayaran/belanja di struk",
+            },
+            category: {
+              type: Type.STRING,
+              description:
+                "Kategori pengeluaran umum yang cocok (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)",
+            },
             items: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  name: { type: Type.STRING, description: "Nama barang yang dibeli" },
+                  name: {
+                    type: Type.STRING,
+                    description: "Nama barang yang dibeli",
+                  },
                   price: { type: Type.NUMBER, description: "Harga barang" },
-                  quantity: { type: Type.NUMBER, description: "Jumlah barang yang dibeli" },
-                  category: { type: Type.STRING, description: "Kategori pengeluaran yang cocok untuk barang spesifik ini (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)" },
+                  quantity: {
+                    type: Type.NUMBER,
+                    description: "Jumlah barang yang dibeli",
+                  },
+                  category: {
+                    type: Type.STRING,
+                    description:
+                      "Kategori pengeluaran yang cocok untuk barang spesifik ini (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)",
+                  },
                 },
                 required: ["name", "price", "category"],
               },
               description: "Daftar barang-barang di struk",
             },
-            confidence: { type: Type.NUMBER, description: "Skor keyakinan analisis dari 0.0 hingga 1.0" },
+            confidence: {
+              type: Type.NUMBER,
+              description: "Skor keyakinan analisis dari 0.0 hingga 1.0",
+            },
           },
-          required: ["merchantName", "date", "totalAmount", "category", "items"],
+          required: [
+            "merchantName",
+            "date",
+            "totalAmount",
+            "category",
+            "items",
+          ],
         },
       },
     });
@@ -98,7 +134,9 @@ app.post("/api/scan-receipt", async (req, res) => {
     res.json(receiptData);
   } catch (error: any) {
     console.error("Gagal melakukan scan struk:", error);
-    res.status(500).json({ error: error.message || "Gagal memproses struk belanja menggunakan AI." });
+    res.status(500).json({
+      error: error.message || "Gagal memproses struk belanja menggunakan AI.",
+    });
   }
 });
 
@@ -134,22 +172,32 @@ Analisis data di atas dan buatlah ringkasan kondisi keuangan mereka, tips prakti
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            summary: { type: Type.STRING, description: "Ringkasan singkat kondisi keuangan bulan ini dalam 2-3 kalimat yang bersahabat." },
+            summary: {
+              type: Type.STRING,
+              description:
+                "Ringkasan singkat kondisi keuangan bulan ini dalam 2-3 kalimat yang bersahabat.",
+            },
             tips: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: "3 tips hemat praktis dan konkret yang disesuaikan dengan pola pengeluaran di atas."
+              description:
+                "3 tips hemat praktis dan konkret yang disesuaikan dengan pola pengeluaran di atas.",
             },
             warnings: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: "Daftar peringatan jika ada kategori pengeluaran yang membengkak atau melebihi budget (kosongkan array jika keuangan aman)."
+              description:
+                "Daftar peringatan jika ada kategori pengeluaran yang membengkak atau melebihi budget (kosongkan array jika keuangan aman).",
             },
-            recommendation: { type: Type.STRING, description: "Rekomendasi utama atau kata-kata motivasi untuk bulan depan." }
+            recommendation: {
+              type: Type.STRING,
+              description:
+                "Rekomendasi utama atau kata-kata motivasi untuk bulan depan.",
+            },
           },
-          required: ["summary", "tips", "warnings", "recommendation"]
-        }
-      }
+          required: ["summary", "tips", "warnings", "recommendation"],
+        },
+      },
     });
 
     const resultText = response.text;
@@ -160,7 +208,9 @@ Analisis data di atas dan buatlah ringkasan kondisi keuangan mereka, tips prakti
     res.json(JSON.parse(resultText.trim()));
   } catch (error: any) {
     console.error("Gagal membuat insight keuangan:", error);
-    res.status(500).json({ error: error.message || "Gagal membuat insight keuangan pribadi." });
+    res.status(500).json({
+      error: error.message || "Gagal membuat insight keuangan pribadi.",
+    });
   }
 });
 
@@ -180,9 +230,14 @@ async function start() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server keuangan pribadi berjalan di http://localhost:${PORT}`);
-  });
+  if (process.env.NODE_ENV !== "production") {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(
+        `Server keuangan pribadi berjalan di http://localhost:${PORT}`,
+      );
+    });
+  }
 }
+export default app;
 
 start();
