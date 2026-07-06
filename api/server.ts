@@ -1,21 +1,29 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
-import { GoogleGenAI, Type } from "@google/genai";
-import { createServer as createViteServer } from "vite";
+import cors from "cors";
+import { GoogleGenAI } from "@google/genai";
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
 
 // Set up json parser with high limits for image uploads
 app.use(express.json({ limit: "15mb" }));
 
-// Initialize Gemini Client with standard User-Agent header for telemetry
+// Atur CORS agar Vercel mengizinkan request dari frontend produksi dan lokal
+app.use(cors({
+  origin: ['https://amk-jade.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
+
+const apiKey = process.env.GEMINI_API_KEY;
+
+// Initialize Gemini Client
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: apiKey,
   httpOptions: {
     headers: {
       "User-Agent": "aistudio-build",
@@ -40,6 +48,10 @@ function parseDataUrl(dataUrl: string) {
 // API Route: Scan Receipt
 app.post("/api/scan-receipt", async (req, res) => {
   try {
+    if (!apiKey) {
+      return res.status(500).json({ error: "API Key Gemini belum dikonfigurasi di server Vercel." });
+    }
+
     const { image } = req.body;
     if (!image) {
       return res
@@ -61,48 +73,46 @@ app.post("/api/scan-receipt", async (req, res) => {
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: { parts: [imagePart, textPart] },
-      config: {
+      model: "gemini-1.5-flash",
+      contents: [imagePart, textPart],
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
+          type: "object",
           properties: {
             merchantName: {
-              type: Type.STRING,
+              type: "string",
               description: "Nama toko, supermarket atau merchant",
             },
             date: {
-              type: Type.STRING,
+              type: "string",
               description: "Tanggal transaksi dalam format YYYY-MM-DD",
             },
             totalAmount: {
-              type: Type.NUMBER,
+              type: "number",
               description: "Total pembayaran/belanja di struk",
             },
             category: {
-              type: Type.STRING,
-              description:
-                "Kategori pengeluaran umum yang cocok (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)",
+              type: "string",
+              description: "Kategori pengeluaran umum yang cocok (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)",
             },
             items: {
-              type: Type.ARRAY,
+              type: "array",
               items: {
-                type: Type.OBJECT,
+                type: "object",
                 properties: {
                   name: {
-                    type: Type.STRING,
+                    type: "string",
                     description: "Nama barang yang dibeli",
                   },
-                  price: { type: Type.NUMBER, description: "Harga barang" },
+                  price: { type: "number", description: "Harga barang" },
                   quantity: {
-                    type: Type.NUMBER,
+                    type: "number",
                     description: "Jumlah barang yang dibeli",
                   },
                   category: {
-                    type: Type.STRING,
-                    description:
-                      "Kategori pengeluaran yang cocok untuk barang spesifik ini (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)",
+                    type: "string",
+                    description: "Kategori pengeluaran yang cocok untuk barang spesifik ini (Makanan, Belanja, Transportasi, Hiburan, Kesehatan, Tagihan, Lainnya)",
                   },
                 },
                 required: ["name", "price", "category"],
@@ -110,7 +120,7 @@ app.post("/api/scan-receipt", async (req, res) => {
               description: "Daftar barang-barang di struk",
             },
             confidence: {
-              type: Type.NUMBER,
+              type: "number",
               description: "Skor keyakinan analisis dari 0.0 hingga 1.0",
             },
           },
@@ -125,16 +135,16 @@ app.post("/api/scan-receipt", async (req, res) => {
       },
     });
 
-    const resultText = response.text;
+    let resultText = response.text;
     if (!resultText) {
       throw new Error("Gagal menerima hasil analisis dari Gemini.");
     }
 
-    const receiptData = JSON.parse(resultText.trim());
-    res.json(receiptData);
+    resultText = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
+    return res.json(JSON.parse(resultText));
   } catch (error: any) {
     console.error("Gagal melakukan scan struk:", error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || "Gagal memproses struk belanja menggunakan AI.",
     });
   }
@@ -143,6 +153,10 @@ app.post("/api/scan-receipt", async (req, res) => {
 // API Route: Financial Insights
 app.post("/api/financial-insights", async (req, res) => {
   try {
+    if (!apiKey) {
+      return res.status(500).json({ error: "API Key Gemini belum dikonfigurasi di server Vercel." });
+    }
+
     const { transactions, monthlyBudget } = req.body;
 
     if (!transactions || !Array.isArray(transactions)) {
@@ -165,34 +179,30 @@ Analisis data di atas dan buatlah ringkasan kondisi keuangan mereka, tips prakti
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-1.5-flash",
       contents: prompt,
-      config: {
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
+          type: "object",
           properties: {
             summary: {
-              type: Type.STRING,
-              description:
-                "Ringkasan singkat kondisi keuangan bulan ini dalam 2-3 kalimat yang bersahabat.",
+              type: "string",
+              description: "Ringkasan singkat kondisi keuangan bulan ini dalam 2-3 kalimat yang bersahabat.",
             },
             tips: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description:
-                "3 tips hemat praktis dan konkret yang disesuaikan dengan pola pengeluaran di atas.",
+              type: "array",
+              items: { type: "string" },
+              description: "3 tips hemat praktis dan konkret yang disesuaikan dengan pola pengeluaran di atas.",
             },
             warnings: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description:
-                "Daftar peringatan jika ada kategori pengeluaran yang membengkak atau melebihi budget (kosongkan array jika keuangan aman).",
+              type: "array",
+              items: { type: "string" },
+              description: "Daftar peringatan jika ada kategori pengeluaran yang membengkak atau melebihi budget (kosongkan array jika keuangan aman).",
             },
             recommendation: {
-              type: Type.STRING,
-              description:
-                "Rekomendasi utama atau kata-kata motivasi untuk bulan depan.",
+              type: "string",
+              description: "Rekomendasi utama atau kata-kata motivasi untuk bulan depan.",
             },
           },
           required: ["summary", "tips", "warnings", "recommendation"],
@@ -200,44 +210,27 @@ Analisis data di atas dan buatlah ringkasan kondisi keuangan mereka, tips prakti
       },
     });
 
-    const resultText = response.text;
+    let resultText = response.text;
     if (!resultText) {
       throw new Error("Gagal menerima analisis finansial dari Gemini.");
     }
 
-    res.json(JSON.parse(resultText.trim()));
+    resultText = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
+    return res.json(JSON.parse(resultText));
   } catch (error: any) {
     console.error("Gagal membuat insight keuangan:", error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || "Gagal membuat insight keuangan pribadi.",
     });
   }
 });
 
-// Start Server & Handle Vite Assets Setup
-async function start() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(
-        `Server keuangan pribadi berjalan di http://localhost:${PORT}`,
-      );
-    });
-  }
+// Penanganan Environment Lokal (SDA/SIISD Development)
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server keuangan pribadi berjalan lokal di http://localhost:${PORT}`);
+  });
 }
-export default app;
 
-start();
+export default app;
