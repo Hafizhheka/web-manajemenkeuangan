@@ -8,18 +8,16 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "."),
+        //  Ubah dari "." menjadi "./src" agar Vite hanya fokus memindai kode frontend
+        "@": path.resolve(__dirname, "./src"),
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== "true",
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === "true" ? null : {},
     },
     build: {
-      chunkSizeWarningLimit: 1600, // Menaikkan batas dari 500kb ke 1600kb
+      chunkSizeWarningLimit: 1600,
     },
   };
 });
